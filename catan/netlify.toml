@@ -1,0 +1,9 @@
+[build]
+  base = "catan"
+  command = "npx ng build --configuration production"
+  publish = "dist/catan/"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
