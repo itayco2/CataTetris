@@ -6,6 +6,7 @@ interface TerrainTileProps {
   terrain?: TerrainType;
   hasSettlement?: boolean;
   hasCity?: boolean;
+  number?: number;
   onClick?: () => void;
 }
 
@@ -37,6 +38,7 @@ export const TerrainTile = ({
   terrain, 
   hasSettlement, 
   hasCity, 
+  number,
   onClick 
 }: TerrainTileProps) => {
   const hexSize = 30;
@@ -51,6 +53,14 @@ export const TerrainTile = ({
       points.push(`${pointX},${pointY}`);
     }
     return `M ${points.join(' L ')} Z`;
+  };
+
+  // Determine number color based on probability
+  const getNumberColor = (num: number) => {
+    if (num === 6 || num === 8) return '#dc2626'; // Red for high probability
+    if (num === 5 || num === 9) return '#ea580c'; // Orange
+    if (num === 4 || num === 10) return '#ca8a04'; // Yellow
+    return '#1e293b'; // Dark for low probability
   };
 
   return (
@@ -86,7 +96,7 @@ export const TerrainTile = ({
       {terrain && (
         <text
           x={x}
-          y={y + 2}
+          y={y - 8}
           textAnchor="middle"
           dominantBaseline="middle"
           fontSize="16"
@@ -94,6 +104,48 @@ export const TerrainTile = ({
         >
           {TERRAIN_PATTERNS[terrain]}
         </text>
+      )}
+      
+      {/* Number token */}
+      {number && terrain !== 'desert' && terrain !== 'water' && (
+        <g>
+          <circle
+            cx={x}
+            cy={y + 10}
+            r="12"
+            fill="#fef3c7"
+            stroke="#92400e"
+            strokeWidth="2"
+            className="drop-shadow-sm"
+          />
+          <text
+            x={x}
+            y={y + 10}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="14"
+            fontWeight="bold"
+            fill={getNumberColor(number)}
+            className="pointer-events-none select-none"
+          >
+            {number}
+          </text>
+          {/* Probability dots */}
+          <text
+            x={x}
+            y={y + 20}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="8"
+            fill="#92400e"
+            className="pointer-events-none select-none"
+          >
+            {number === 6 || number === 8 ? '•••••' : 
+             number === 5 || number === 9 ? '••••' :
+             number === 4 || number === 10 ? '•••' :
+             number === 3 || number === 11 ? '••' : '•'}
+          </text>
+        </g>
       )}
       
       {/* Settlement */}

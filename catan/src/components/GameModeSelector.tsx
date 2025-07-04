@@ -193,39 +193,39 @@ interface GameModeSelectorProps {
 
 export const GameModeSelector = ({ onSelectMode }: GameModeSelectorProps) => {
   return (
-    <div className="min-h-screen bg-gradient-background p-8">
+    <div className="min-h-screen bg-gradient-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <div className="relative mb-8">
+        <div className="text-center mb-8 md:mb-12">
+          <div className="relative mb-6 md:mb-8">
             <img 
               src={heroIsland} 
               alt="Tetris Catan Island" 
-              className="w-full max-w-4xl mx-auto rounded-2xl shadow-medieval border-4 border-primary/20"
+              className="w-full max-w-4xl mx-auto rounded-xl md:rounded-2xl shadow-medieval border-2 md:border-4 border-primary/20"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent rounded-2xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent rounded-xl md:rounded-2xl"></div>
           </div>
-          <h1 className="text-6xl font-bold text-primary mb-4 drop-shadow-lg">
+          <h1 className="text-4xl md:text-6xl font-bold text-primary mb-3 md:mb-4 drop-shadow-lg">
             Tetris Catan
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
             Build the perfect island as terrain tiles fall from above. 
             Combine the strategy of Catan with the puzzle mechanics of Tetris.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8 px-2 sm:px-0">
           {GAME_MODES.map((mode) => (
             <Card 
               key={mode.id} 
-              className="bg-card/80 backdrop-blur-sm border-border/50 shadow-medieval hover:shadow-glow-primary transition-all duration-300 hover:scale-105 cursor-pointer group"
+              className="bg-card/80 backdrop-blur-sm border-border/50 shadow-medieval hover:shadow-glow-primary transition-all duration-300 hover:scale-[1.02] md:hover:scale-105 cursor-pointer group active:scale-[0.98]"
               onClick={() => onSelectMode(mode)}
             >
-              <CardHeader>
-                <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-2xl text-primary group-hover:text-accent transition-colors">
+              <CardHeader className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+                  <CardTitle className="text-lg md:text-2xl text-primary group-hover:text-accent transition-colors">
                     {mode.name}
                   </CardTitle>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Badge variant="secondary" className="text-xs">
                       {mode.maxPlayers} Players
                     </Badge>
@@ -234,14 +234,14 @@ export const GameModeSelector = ({ onSelectMode }: GameModeSelectorProps) => {
                     </Badge>
                   </div>
                 </div>
-                <CardDescription className="text-base">
+                <CardDescription className="text-sm md:text-base">
                   {mode.description}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground">Features:</h4>
-                  <div className="flex flex-wrap gap-2">
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
+                <div className="space-y-2 md:space-y-3">
+                  <h4 className="font-semibold text-sm md:text-base text-foreground">Features:</h4>
+                  <div className="flex flex-wrap gap-1.5 md:gap-2">
                     {mode.features.map((feature) => (
                       <Badge 
                         key={feature} 
@@ -258,10 +258,10 @@ export const GameModeSelector = ({ onSelectMode }: GameModeSelectorProps) => {
           ))}
         </div>
 
-        <div className="text-center">
-          <Card className="inline-block bg-card/60 backdrop-blur-sm border-border/30 p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-2">How to Play</h3>
-            <div className="text-sm text-muted-foreground space-y-1 max-w-md">
+        <div className="text-center px-4">
+          <Card className="inline-block bg-card/60 backdrop-blur-sm border-border/30 p-4 md:p-6 max-w-full">
+            <h3 className="text-base md:text-lg font-semibold text-foreground mb-2">How to Play</h3>
+            <div className="text-xs md:text-sm text-muted-foreground space-y-1 max-w-md text-left">
               <p>• Terrain tiles automatically fall from the top</p>
               <p>• Use ← → arrow keys to move tiles left/right</p>
               <p>• Press ↓ to speed up the drop</p>

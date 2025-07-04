@@ -11,6 +11,7 @@ export const TetrisCatanGame = () => {
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [resetTrigger, setResetTrigger] = useState(0);
   const [gameStats, setGameStats] = useState({
     resources: { wood: 0, wheat: 0, ore: 0, sheep: 0, brick: 0 },
     victoryPoints: 0,
@@ -36,6 +37,7 @@ export const TetrisCatanGame = () => {
   const handleResetGame = () => {
     setIsPlaying(false);
     setIsPaused(false);
+    setResetTrigger(prev => prev + 1);
     // Reset game state
     setGameStats({
       resources: { wood: 0, wheat: 0, ore: 0, sheep: 0, brick: 0 },
@@ -49,6 +51,12 @@ export const TetrisCatanGame = () => {
 
   const handleBackToMenu = () => {
     setSelectedMode(null);
+    setIsPlaying(false);
+    setIsPaused(false);
+  };
+
+  // Add this new function to handle game end
+  const handleGameEnd = () => {
     setIsPlaying(false);
     setIsPaused(false);
   };
@@ -126,6 +134,8 @@ export const TetrisCatanGame = () => {
             mapSize={selectedMode.mapSize} 
             isPlaying={isPlaying && !isPaused} 
             tileCount={selectedMode.tileCount}
+            resetTrigger={resetTrigger}
+            onGameEnd={handleGameEnd} // Add this prop
             onTilePlaced={(terrain) => {
               // Update game stats when tiles are placed - map terrain to resources
               setGameStats(prev => ({

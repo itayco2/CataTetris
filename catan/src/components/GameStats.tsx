@@ -116,21 +116,6 @@ export const GameStats = ({
           </div>
         </CardContent>
       </Card>
-
-      {/* Next Tile Preview */}
-      <Card className="bg-card/80 backdrop-blur-sm border-border/50 shadow-medieval">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg text-primary">Next Tile</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto bg-gradient-tile rounded-lg border-2 border-primary/50 flex items-center justify-center text-2xl mb-2 shadow-glow-primary">
-              🌲
-            </div>
-            <div className="text-sm text-muted-foreground">Forest</div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

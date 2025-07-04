@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TerrainType } from '@/components/GameBoard';
 import { TileCount } from '@/components/GameModeSelector';
 
@@ -88,12 +88,30 @@ export const useTileQueue = ({ tileCount, isPlaying }: UseTileQueueProps) => {
     return tileQueue.slice(2, 5); // Show next 3 tiles after current and next
   };
 
+  // Reset queue function
+  const resetQueue = useCallback(() => {
+    setTileQueue([]);
+    setCurrentTile(null);
+    setNextTile(null);
+    setRemainingTiles({
+      field: 0,
+      forest: 0,
+      pasture: 0,
+      hill: 0,
+      mountain: 0,
+      desert: 0,
+      water: 0,
+      gold: 0
+    });
+  }, []);
+
   return {
     currentTile,
     nextTile,
     upcomingTiles: getUpcomingTiles(),
     remainingTiles,
     getNextTile,
-    hasMoreTiles: tileQueue.length > 1
+    hasMoreTiles: tileQueue.length > 1,
+    resetQueue
   };
 };
