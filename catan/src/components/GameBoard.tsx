@@ -77,7 +77,7 @@ export const GameBoard = ({
     const hexes: Hex[] = [];
     
     if (size === 2) {
-      // Classic Catan island shape - perfect hexagon
+      // Classic Catan island shape - perfect hexagon (19 tiles)
       const landHexes = [
         // Center hex
         { q: 0, r: 0 },
@@ -91,30 +91,15 @@ export const GameBoard = ({
         { q: -1, r: 2 }, { q: 0, r: 2 }, { q: 1, r: 1 }
       ];
       
-      // Perfect hexagonal ocean border
-      const waterHexes = [
-        // Complete outer ring
-        { q: 3, r: 0 }, { q: 3, r: -1 }, { q: 3, r: -2 }, { q: 3, r: -3 },
-        { q: 2, r: -3 }, { q: 1, r: -3 }, { q: 0, r: -3 }, { q: -1, r: -2 },
-        { q: -2, r: -1 }, { q: -3, r: 0 }, { q: -3, r: 1 }, { q: -3, r: 2 },
-        { q: -3, r: 3 }, { q: -2, r: 3 }, { q: -1, r: 3 }, { q: 0, r: 3 },
-        { q: 1, r: 2 }, { q: 2, r: 1 }
-      ];
-      
-      // Add land hexes
+      // Add land hexes only - no water border
       landHexes.forEach(hex => {
         hexes.push({ ...hex, terrain: undefined });
       });
       
-      // Add water hexes
-      waterHexes.forEach(hex => {
-        hexes.push({ ...hex, terrain: 'water', isWater: true });
-      });
-      
     } else if (size === 3) {
-      // Extended hexagon for 5-6 players
+      // Extended hexagon for 5-6 players (37 tiles)
       const landHexes = [];
-      // Generate perfect hexagon with radius 3
+      // Generate hexagon with radius 3
       for (let q = -3; q <= 3; q++) {
         const r1 = Math.max(-3, -q - 3);
         const r2 = Math.min(3, -q + 3);
@@ -126,29 +111,11 @@ export const GameBoard = ({
         }
       }
       
-      // Ocean border - one ring outside the land
-      const waterHexes = [];
-      for (let q = -4; q <= 4; q++) {
-        const r1 = Math.max(-4, -q - 4);
-        const r2 = Math.min(4, -q + 4);
-        for (let r = r1; r <= r2; r++) {
-          const s = -q - r;
-          const distance = Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
-          if (distance === 4) {
-            waterHexes.push({ q, r });
-          }
-        }
-      }
-      
       landHexes.forEach(hex => {
         hexes.push({ ...hex, terrain: undefined });
       });
-      
-      waterHexes.forEach(hex => {
-        hexes.push({ ...hex, terrain: 'water', isWater: true });
-      });
     } else {
-      // Fallback for other sizes
+      // Fallback for other sizes - no water border
       for (let q = -size; q <= size; q++) {
         const r1 = Math.max(-size, -q - size);
         const r2 = Math.min(size, -q + size);
@@ -156,10 +123,8 @@ export const GameBoard = ({
           const s = -q - r;
           const distance = Math.max(Math.abs(q), Math.abs(r), Math.abs(s));
           
-          if (distance < size) {
+          if (distance <= size) {
             hexes.push({ q, r, terrain: undefined });
-          } else if (distance === size) {
-            hexes.push({ q, r, terrain: 'water', isWater: true });
           }
         }
       }
@@ -181,28 +146,97 @@ export const GameBoard = ({
     const numberTiles = [];
     board.forEach((hex, key) => {
       if (hex.terrain && hex.terrain !== 'desert' && hex.terrain !== 'water' && hex.terrain !== 'gold') {
-        numberTiles.push(key);
+        numberTiles.push({ key, q: hex.q, r: hex.r });
       }
     });
     
-    // Shuffle the tiles randomly
-    const shuffledTiles = [...numberTiles].sort(() => Math.random() - 0.5);
+    // Log for debugging
+    console.log('Board size:', board.size);
+    console.log('Tiles needing numbers:', numberTiles.length);
+    console.log('Numbers available:', numberDistribution.length);
     
-    // Take only as many numbers as we have tiles
-    const numbersToUse = numberDistribution.slice(0, shuffledTiles.length);
+    // Helper function to get adjacent hexes
+    const getAdjacentHexes = (q: number, r: number) => {
+      return [
+        { q: q + 1, r: r },
+        { q: q - 1, r: r },
+        { q: q, r: r + 1 },
+        { q: q, r: r - 1 },
+        { q: q + 1, r: r - 1 },
+        { q: q - 1, r: r + 1 }
+      ];
+    };
     
-    // Shuffle numbers randomly
-    const shuffledNumbers = [...numbersToUse].sort(() => Math.random() - 0.5);
+    // Helper function to check if a number placement is valid
+    const isValidPlacement = (tileKey: string, number: number, placedNumbers: Map<string, number>) => {
+      if (number !== 6 && number !== 8) return true; // Only 6 and 8 have restrictions
+      
+      const tile = numberTiles.find(t => t.key === tileKey);
+      if (!tile) return false;
+      
+      const adjacentHexes = getAdjacentHexes(tile.q, tile.r);
+      
+      // Check if any adjacent hex has a 6 or 8
+      for (const adj of adjacentHexes) {
+        const adjKey = `${adj.q},${adj.r}`;
+        const adjNumber = placedNumbers.get(adjKey);
+        if (adjNumber === 6 || adjNumber === 8) {
+          return false; // Can't place 6 or 8 next to another 6 or 8
+        }
+      }
+      
+      return true;
+    };
+    
+    // Separate high probability numbers (6, 8) from others
+    const highProbNumbers = numberDistribution.filter(n => n === 6 || n === 8);
+    const otherNumbers = numberDistribution.filter(n => n !== 6 && n !== 8);
     
     const newNumbers = new Map<string, number>();
+    const availableTiles = [...numberTiles];
     
-    // Assign numbers to tiles
-    shuffledTiles.forEach((tileKey, index) => {
-      if (index < shuffledNumbers.length) {
-        newNumbers.set(tileKey, shuffledNumbers[index]);
+    // First, place 6s and 8s ensuring they're not adjacent
+    for (const number of highProbNumbers) {
+      let placed = false;
+      
+      // Try random positions until we find a valid one
+      for (let attempts = 0; attempts < 100 && !placed; attempts++) {
+        const randomIndex = Math.floor(Math.random() * availableTiles.length);
+        const tile = availableTiles[randomIndex];
+        
+        if (isValidPlacement(tile.key, number, newNumbers)) {
+          newNumbers.set(tile.key, number);
+          availableTiles.splice(randomIndex, 1);
+          placed = true;
+        }
       }
-    });
+      
+      // If we couldn't place it randomly, just place it anywhere available
+      if (!placed && availableTiles.length > 0) {
+        const tile = availableTiles.shift();
+        if (tile) newNumbers.set(tile.key, number);
+      }
+    }
     
+    // Then place all other numbers randomly
+    const shuffledOthers = [...otherNumbers].sort(() => Math.random() - 0.5);
+    
+    // Make sure we have enough numbers for all tiles
+    const numbersNeeded = availableTiles.length;
+    const numbersAvailable = shuffledOthers.length;
+    
+    if (numbersNeeded > numbersAvailable) {
+      console.warn(`Not enough numbers! Need ${numbersNeeded}, have ${numbersAvailable}`);
+    }
+    
+    // Place remaining numbers
+    for (let i = 0; i < availableTiles.length && i < shuffledOthers.length; i++) {
+      const tile = availableTiles[i];
+      const number = shuffledOthers[i];
+      newNumbers.set(tile.key, number);
+    }
+    
+    console.log('Numbers placed:', newNumbers.size);
     setBoardNumbers(newNumbers);
   }, [board, mapSize]);
 
@@ -223,10 +257,12 @@ export const GameBoard = ({
   const getValidSpawnPositions = () => {
     const landHexes = hexes.filter(h => !h.isWater);
     const topRow = Math.min(...landHexes.map(h => h.r));
-    // Start 3 rows above the actual board for more reaction time
-    return landHexes.filter(h => h.r === topRow).map(h => ({
-      ...h,
-      r: h.r - 3
+    // Get all columns that have land hexes
+    const validColumns = new Set(landHexes.map(h => h.q));
+    // Return spawn positions for each valid column, 4 rows above the board
+    return Array.from(validColumns).map(q => ({
+      q,
+      r: topRow - 4
     }));
   };
 
@@ -270,9 +306,11 @@ export const GameBoard = ({
       // Spawn next tile after brief delay
       setTimeout(spawnNewTile, 200);
     } else if (!hasMoreTiles && !showFinalBoard) {
-      // No more tiles - end game
-      setShowFinalBoard(true);
-      generateNumberTokens();
+      // No more tiles - generate numbers and end game
+      setTimeout(() => {
+        generateNumberTokens();
+        setShowFinalBoard(true);
+      }, 500);
     }
   }, [currentTile, board, onTilePlaced, getNextTile, spawnNewTile, hasMoreTiles, showFinalBoard, generateNumberTokens]);
 
@@ -282,31 +320,42 @@ export const GameBoard = ({
     
     setTilePosition(prev => {
       const newR = prev.r + 1;
-      const nextKey = `${prev.q},${newR}`;
       
-      // Check if we're still above the board
+      // Get all valid positions in current column
       const landHexes = hexes.filter(h => !h.isWater);
-      const topRow = Math.min(...landHexes.map(h => h.r));
+      const columnHexes = landHexes.filter(h => h.q === prev.q).sort((a, b) => a.r - b.r);
       
-      // Always allow movement above the board
-      if (newR < topRow) {
-        return { ...prev, r: newR };
-      }
-      
-      // Check if valid position on board
-      if (!isValidPosition(prev.q, newR)) {
-        // Reached edge, place tile
-        placeTile(prev.q, prev.r);
+      if (columnHexes.length === 0) {
+        // No valid positions in this column
         return prev;
       }
       
-      // Check if next position would collide with existing tile
-      if (board.has(nextKey) && board.get(nextKey)?.terrain) {
-        // Place above the collision point
-        placeTile(prev.q, prev.r);
+      // Find the lowest available position
+      let targetR = columnHexes[columnHexes.length - 1].r; // Start with bottom-most position
+      
+      // Check each position from top to bottom
+      for (let i = 0; i < columnHexes.length; i++) {
+        const hex = columnHexes[i];
+        const key = `${hex.q},${hex.r}`;
+        if (board.has(key) && board.get(key)?.terrain) {
+          // Found an occupied tile, place on top of it
+          if (i === 0) {
+            // Column is full from the top
+            targetR = hex.r - 1;
+          } else {
+            targetR = columnHexes[i - 1].r;
+          }
+          break;
+        }
+      }
+      
+      // If we've reached or passed the target position, place the tile
+      if (newR >= targetR) {
+        placeTile(prev.q, targetR);
         return prev;
       }
       
+      // Otherwise, continue falling
       return { ...prev, r: newR };
     });
   }, [currentTile, isPlaying, showFinalBoard, board, placeTile, hexes]);
@@ -315,25 +364,31 @@ export const GameBoard = ({
   const hardDrop = useCallback(() => {
     if (!currentTile || !isPlaying) return;
     
-    let dropR = tilePosition.r;
     const landHexes = hexes.filter(h => !h.isWater);
-    const maxR = Math.max(...landHexes.map(h => h.r));
+    const columnHexes = landHexes.filter(h => h.q === tilePosition.q).sort((a, b) => a.r - b.r);
     
-    // Find the lowest valid position without collision
-    while (dropR < maxR) {
-      const nextR = dropR + 1;
-      const key = `${tilePosition.q},${nextR}`;
-      
-      // Check if next position is valid
-      if (!isValidPosition(tilePosition.q, nextR)) break;
-      
-      // Check if collision
-      if (board.has(key) && board.get(key)?.terrain) break;
-      
-      dropR = nextR;
+    if (columnHexes.length === 0) return;
+    
+    // Find the lowest available position
+    let targetR = columnHexes[columnHexes.length - 1].r; // Start with bottom-most position
+    
+    // Check each position from top to bottom
+    for (let i = 0; i < columnHexes.length; i++) {
+      const hex = columnHexes[i];
+      const key = `${hex.q},${hex.r}`;
+      if (board.has(key) && board.get(key)?.terrain) {
+        // Found an occupied tile, place on top of it
+        if (i === 0) {
+          // Column is full from the top
+          targetR = hex.r - 1;
+        } else {
+          targetR = columnHexes[i - 1].r;
+        }
+        break;
+      }
     }
     
-    placeTile(tilePosition.q, dropR);
+    placeTile(tilePosition.q, targetR);
   }, [currentTile, isPlaying, tilePosition, placeTile, hexes, board]);
 
   // ========== HANDLE BOARD CLICK ==========
@@ -371,9 +426,10 @@ export const GameBoard = ({
             const landHexes = hexes.filter(h => !h.isWater);
             const topRow = Math.min(...landHexes.map(h => h.r));
             
-            // If above board, allow free movement within reasonable bounds
+            // If above board, check if the column has any valid positions
             if (prev.r < topRow) {
-              return Math.abs(newQ) <= mapSize + 2 ? { ...prev, q: newQ } : prev;
+              const hasValidPositionInColumn = landHexes.some(h => h.q === newQ);
+              return hasValidPositionInColumn ? { ...prev, q: newQ } : prev;
             }
             
             // On board, check for valid position and collision
@@ -392,9 +448,10 @@ export const GameBoard = ({
             const landHexes = hexes.filter(h => !h.isWater);
             const topRow = Math.min(...landHexes.map(h => h.r));
             
-            // If above board, allow free movement within reasonable bounds
+            // If above board, check if the column has any valid positions
             if (prev.r < topRow) {
-              return Math.abs(newQ) <= mapSize + 2 ? { ...prev, q: newQ } : prev;
+              const hasValidPositionInColumn = landHexes.some(h => h.q === newQ);
+              return hasValidPositionInColumn ? { ...prev, q: newQ } : prev;
             }
             
             // On board, check for valid position and collision
@@ -477,25 +534,25 @@ export const GameBoard = ({
 
   // ========== GAME END CHECK ==========
   useEffect(() => {
-    if (!hasMoreTiles && isPlaying && board.size > 0 && !showFinalBoard) {
-      // Only end game if we've actually placed some tiles
+    if (!hasMoreTiles && isPlaying && board.size > 0 && !showFinalBoard && !currentTile) {
+      // Only end game if we've actually placed some tiles AND no current tile is active
       setTimeout(() => {
-        setShowFinalBoard(true);
         generateNumberTokens();
+        setShowFinalBoard(true);
       }, 500);
     }
-  }, [hasMoreTiles, isPlaying, board.size, showFinalBoard, generateNumberTokens]);
+  }, [hasMoreTiles, isPlaying, board.size, showFinalBoard, currentTile, generateNumberTokens]);
 
   // ========== RENDER ==========
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       {/* Game Board */}
       <div className="lg:col-span-3 order-2 lg:order-1">
-        <Card className="relative overflow-hidden bg-gradient-to-br from-blue-900/20 to-blue-800/20 border-border/50 shadow-2xl min-h-[400px] sm:min-h-[500px] md:min-h-[600px]">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-blue-900/20 to-blue-800/20 border-border/50 shadow-2xl min-h-[400px] sm:min-h-[500px] md:min-h-[600px] h-full">
           {/* Ocean background effect */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-blue-800/10 to-blue-700/10"></div>
           
-          {/* Catan Board Frame with hexagonal border */}
+          {/* Catan Board Frame */}
           <div className="absolute inset-4 rounded-lg border-4 border-amber-600/40 bg-gradient-to-br from-amber-900/5 to-amber-800/5 shadow-inner">
             {/* Decorative corner elements */}
             <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-500/60"></div>
@@ -506,8 +563,9 @@ export const GameBoard = ({
           
           <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 md:p-8">
             <svg 
-              viewBox="-300 -350 600 700" 
-              className="w-full h-full max-w-[90vw] max-h-[60vh] sm:max-w-[600px] sm:max-h-[600px] md:max-w-[700px] md:max-h-[700px]"
+              viewBox={mapSize === 2 ? "-250 -280 500 560" : mapSize === 3 ? "-350 -380 700 760" : "-450 -480 900 960"}
+              className="w-full h-full"
+              preserveAspectRatio="xMidYMid meet"
             >
               {/* Ocean waves background pattern */}
               <defs>
@@ -550,12 +608,17 @@ export const GameBoard = ({
                 </filter>
               </defs>
               
-              {/* Ocean background */}
-              <rect x="-300" y="-300" width="600" height="600" fill="url(#ocean-pattern)" />
+              {/* Ocean background - full coverage */}
+              <rect x="-100%" y="-100%" width="200%" height="200%" fill="url(#ocean-pattern)" />
               
-              {/* Hexagonal board outline (like the wooden frame) */}
+              {/* Hexagonal board outline (like the wooden frame) - adjusted for map size */}
               <polygon 
-                points="0,-220 190,-110 190,110 0,220 -190,110 -190,-110"
+                points={mapSize === 2 
+                  ? "0,-154 133,-77 133,77 0,154 -133,77 -133,-77"
+                  : mapSize === 3
+                  ? "0,-231 199.5,-115.5 199.5,115.5 0,231 -199.5,115.5 -199.5,-115.5"
+                  : "0,-308 266,-154 266,154 0,308 -266,154 -266,-154"
+                }
                 fill="none" 
                 stroke="url(#board-frame)" 
                 strokeWidth="12" 
@@ -565,12 +628,23 @@ export const GameBoard = ({
               
               {/* Inner hexagonal border */}
               <polygon 
-                points="0,-210 180,-105 180,105 0,210 -180,105 -180,-105"
+                points={mapSize === 2 
+                  ? "0,-147 126,-73.5 126,73.5 0,147 -126,73.5 -126,-73.5"
+                  : mapSize === 3
+                  ? "0,-220.5 189,-110.25 189,110.25 0,220.5 -189,110.25 -189,-110.25"
+                  : "0,-294 252,-147 252,147 0,294 -252,147 -252,-147"
+                }
                 fill="none" 
                 stroke="#DAA520" 
                 strokeWidth="3" 
                 opacity="0.8"
               />
+              
+              {/* Title */}
+              <text x="0" y={mapSize === 2 ? "-190" : mapSize === 3 ? "-250" : "-330"} 
+                    textAnchor="middle" fontSize="18" fill="#DAA520" fontWeight="bold" opacity="0.8">
+                CATAN ISLAND
+              </text>
               
               {/* Render all hexes */}
               {hexes.map(hex => {
@@ -587,7 +661,7 @@ export const GameBoard = ({
                     terrain={placedHex?.terrain || (hex.isWater ? 'water' : undefined)}
                     hasSettlement={placedHex?.hasSettlement}
                     hasCity={placedHex?.hasCity}
-                    number={showFinalBoard && !hex.isWater && placedHex?.terrain && placedHex.terrain !== 'desert' && placedHex.terrain !== 'water' && placedHex.terrain !== 'gold' ? number : undefined}
+                    number={!hex.isWater && placedHex?.terrain && placedHex.terrain !== 'desert' && placedHex.terrain !== 'water' && placedHex.terrain !== 'gold' ? number : undefined}
                     onClick={() => handleBoardClick(hex.q, hex.r)}
                   />
                 );
@@ -603,55 +677,50 @@ export const GameBoard = ({
                 />
               )}
               
-              {/* Add proper harbors at water edges */}
+              {/* Add proper harbors at board edges - positioned just outside the board */}
               {mapSize === 2 && (
-                <g opacity="0.8">
-                  {/* 3:1 Generic harbors - positioned at water hex edges */}
-                  <g transform="translate(-105, -180)">
-                    <rect x="-15" y="-8" width="30" height="16" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">3:1</text>
+                <g opacity="0.9">
+                  {/* 3:1 Generic harbors - positioned just outside */}
+                  <g transform="translate(-78, -135)">
+                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
                   </g>
-                  <g transform="translate(105, -180)">
-                    <rect x="-15" y="-8" width="30" height="16" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">3:1</text>
+                  <g transform="translate(78, -135)">
+                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
                   </g>
-                  <g transform="translate(210, 0)">
-                    <rect x="-15" y="-8" width="30" height="16" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">3:1</text>
+                  <g transform="translate(156, 0)">
+                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
                   </g>
-                  <g transform="translate(-210, 0)">
-                    <rect x="-15" y="-8" width="30" height="16" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">3:1</text>
+                  <g transform="translate(-156, 0)">
+                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
                   </g>
                   
-                  {/* 2:1 Specialized harbors */}
-                  <g transform="translate(0, -220)">
-                    <rect x="-20" y="-8" width="40" height="16" fill="#228B22" rx="4" stroke="#1a5c1a" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="10" fill="#FFD700" fontWeight="bold">2:1 🌲</text>
+                  {/* 2:1 Specialized harbors - positioned just outside */}
+                  <g transform="translate(0, -165)">
+                    <rect x="-22" y="-9" width="44" height="18" fill="#228B22" rx="4" stroke="#1a5c1a" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">2:1 🌲</text>
                   </g>
-                  <g transform="translate(157, -110)">
-                    <rect x="-20" y="-8" width="40" height="16" fill="#F4A460" rx="4" stroke="#D2691E" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">2:1 🌾</text>
+                  <g transform="translate(117, -82)">
+                    <rect x="-22" y="-9" width="44" height="18" fill="#F4A460" rx="4" stroke="#D2691E" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#333" fontWeight="bold">2:1 🌾</text>
                   </g>
-                  <g transform="translate(157, 110)">
-                    <rect x="-20" y="-8" width="40" height="16" fill="#696969" rx="4" stroke="#4a4a4a" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="10" fill="#FFD700" fontWeight="bold">2:1 ⛏️</text>
+                  <g transform="translate(117, 82)">
+                    <rect x="-22" y="-9" width="44" height="18" fill="#696969" rx="4" stroke="#4a4a4a" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">2:1 ⛏️</text>
                   </g>
-                  <g transform="translate(0, 220)">
-                    <rect x="-20" y="-8" width="40" height="16" fill="#90EE90" rx="4" stroke="#66bb66" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="10" fill="#333" fontWeight="bold">2:1 🐑</text>
+                  <g transform="translate(0, 165)">
+                    <rect x="-22" y="-9" width="44" height="18" fill="#90EE90" rx="4" stroke="#66bb66" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#333" fontWeight="bold">2:1 🐑</text>
                   </g>
-                  <g transform="translate(-157, 110)">
-                    <rect x="-20" y="-8" width="40" height="16" fill="#A0522D" rx="4" stroke="#8B4513" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="10" fill="#FFD700" fontWeight="bold">2:1 🧱</text>
+                  <g transform="translate(-117, 82)">
+                    <rect x="-22" y="-9" width="44" height="18" fill="#A0522D" rx="4" stroke="#8B4513" strokeWidth="2" />
+                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">2:1 🧱</text>
                   </g>
                 </g>
               )}
-              
-              {/* Catan logo/title in the ocean */}
-              <text x="0" y="-260" textAnchor="middle" fontSize="16" fill="#DAA520" fontWeight="bold" opacity="0.8">
-                CATAN ISLAND
-              </text>
             </svg>
             
             {/* Controls instruction - mobile responsive */}

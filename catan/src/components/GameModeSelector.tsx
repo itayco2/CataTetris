@@ -2,8 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import heroIsland from '@/assets/hero-island.jpg';
 
-// Fixed GameModeSelector.tsx - Corrected tile counts and board sizes
-
 export interface TileCount {
   field: number;
   forest: number;
@@ -30,7 +28,7 @@ const GAME_MODES: GameMode[] = [
     id: 'base-3-4',
     name: 'Base Game (3-4 Players)',
     description: 'The classic Catan island experience.',
-    mapSize: 2, // Reduced from 3 to 2 (generates ~19 positions)
+    mapSize: 2, // Generates 19 land tiles
     maxPlayers: 4,
     features: ['19 Land Tiles', 'Balanced Resources', 'Classic Gameplay'],
     tileCount: { 
@@ -40,7 +38,7 @@ const GAME_MODES: GameMode[] = [
       hill: 3,       // Brick
       mountain: 3,   // Ore
       desert: 1,     // Desert
-      water: 0, 
+      water: 0,      // No water tiles
       gold: 0 
     }
   },
@@ -48,7 +46,7 @@ const GAME_MODES: GameMode[] = [
     id: 'base-5-6',
     name: 'Base Game (5-6 Players)',
     description: 'Extended island for more settlers.',
-    mapSize: 3, // Increased tile count to match
+    mapSize: 3, // Generates 37 land tiles
     maxPlayers: 6,
     features: ['37 Land Tiles', 'Larger Island', 'More Resources'],
     tileCount: { 
@@ -58,7 +56,7 @@ const GAME_MODES: GameMode[] = [
       hill: 5,       // Brick
       mountain: 5,   // Ore
       desert: 2,     // Desert
-      water: 7,      // Fill remaining spaces
+      water: 0,      // No water tiles
       gold: 0 
     }
   },
@@ -76,7 +74,7 @@ const GAME_MODES: GameMode[] = [
       hill: 40, 
       mountain: 40, 
       desert: 10, 
-      water: 20,
+      water: 0,      // No water tiles
       gold: 10 
     }
   },
@@ -84,7 +82,7 @@ const GAME_MODES: GameMode[] = [
     id: 'seafarers-heading-for-new-shores',
     name: 'Seafarers: New Shores',
     description: 'Discover uncharted islands across the sea.',
-    mapSize: 4, // Reduced from 5
+    mapSize: 4,
     maxPlayers: 4,
     features: ['Multiple Islands', 'Ships', 'Gold Hexes', 'Sea Routes'],
     tileCount: { 
@@ -94,8 +92,8 @@ const GAME_MODES: GameMode[] = [
       hill: 4, 
       mountain: 4, 
       desert: 2, 
-      water: 30,    // Plenty of water for sea-based gameplay
-      gold: 2       // Gold fields
+      water: 0,      // No water tiles in Tetris mode
+      gold: 2        // Gold fields
     }
   },
   {
@@ -112,7 +110,7 @@ const GAME_MODES: GameMode[] = [
       hill: 3, 
       mountain: 3, 
       desert: 1, 
-      water: 35,    // Lots of water for exploration
+      water: 0,      // No water tiles in Tetris mode
       gold: 3 
     }
   },
@@ -138,7 +136,7 @@ const GAME_MODES: GameMode[] = [
     id: 'explorers-pirates',
     name: 'Explorers & Pirates',
     description: 'Set sail for adventure and discovery.',
-    mapSize: 5, // Large map with lots of tiles
+    mapSize: 5, // Large map
     maxPlayers: 4,
     features: ['Missions', 'Pirate Lairs', 'Fish', 'Spices', 'Harbor Settlement'],
     tileCount: { 
@@ -148,8 +146,8 @@ const GAME_MODES: GameMode[] = [
       hill: 2, 
       mountain: 2, 
       desert: 1, 
-      water: 45,    // Lots of ocean for pirate adventures
-      gold: 5       // Includes fish/spice hexes
+      water: 0,      // No water tiles in Tetris mode
+      gold: 5        // Includes fish/spice hexes
     }
   }
 ];
