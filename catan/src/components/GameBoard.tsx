@@ -6,6 +6,7 @@ import { NextTilePreview } from './NextTilePreview';
 import { useTileQueue } from '@/hooks/useTileQueue';
 import { TileCount } from './GameModeSelector';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export type TerrainType = 'forest' | 'field' | 'mountain' | 'pasture' | 'hill' | 'desert' | 'water' | 'gold';
 
@@ -45,6 +46,7 @@ export const GameBoard = ({
   const [dropSpeed, setDropSpeed] = useState(1000);
   const [showFinalBoard, setShowFinalBoard] = useState(false);
   const [boardNumbers, setBoardNumbers] = useState<Map<string, number>>(new Map());
+  const isMobile = useIsMobile();
 
   // Use tile queue hook
   const {
@@ -114,6 +116,23 @@ export const GameBoard = ({
       landHexes.forEach(hex => {
         hexes.push({ ...hex, terrain: undefined });
       });
+    } else if (size === 4) {
+      // Large Seafarers map (61 tiles for better gameplay)
+      const landHexes = [];
+      for (let q = -4; q <= 4; q++) {
+        const r1 = Math.max(-4, -q - 4);
+        const r2 = Math.min(4, -q + 4);
+        for (let r = r1; r <= r2; r++) {
+          const s = -q - r;
+          if (Math.abs(q) <= 4 && Math.abs(r) <= 4 && Math.abs(s) <= 4) {
+            landHexes.push({ q, r });
+          }
+        }
+      }
+      
+      landHexes.forEach(hex => {
+        hexes.push({ ...hex, terrain: undefined });
+      });
     } else {
       // Fallback for other sizes - no water border
       for (let q = -size; q <= size; q++) {
@@ -135,111 +154,6 @@ export const GameBoard = ({
 
   const hexes = generateCatanBoard(mapSize);
 
-  // ========== NUMBER GENERATION ==========
-  const generateNumberTokens = useCallback(() => {
-    // Authentic Catan number distribution
-    const numberDistribution = mapSize === 2 
-      ? [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12] // 18 numbers for classic
-      : [2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 8, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12]; // More for extended
-    
-    // Get all land tiles that need numbers (exclude desert, water, gold)
-    const numberTiles = [];
-    board.forEach((hex, key) => {
-      if (hex.terrain && hex.terrain !== 'desert' && hex.terrain !== 'water' && hex.terrain !== 'gold') {
-        numberTiles.push({ key, q: hex.q, r: hex.r });
-      }
-    });
-    
-    // Log for debugging
-    console.log('Board size:', board.size);
-    console.log('Tiles needing numbers:', numberTiles.length);
-    console.log('Numbers available:', numberDistribution.length);
-    
-    // Helper function to get adjacent hexes
-    const getAdjacentHexes = (q: number, r: number) => {
-      return [
-        { q: q + 1, r: r },
-        { q: q - 1, r: r },
-        { q: q, r: r + 1 },
-        { q: q, r: r - 1 },
-        { q: q + 1, r: r - 1 },
-        { q: q - 1, r: r + 1 }
-      ];
-    };
-    
-    // Helper function to check if a number placement is valid
-    const isValidPlacement = (tileKey: string, number: number, placedNumbers: Map<string, number>) => {
-      if (number !== 6 && number !== 8) return true; // Only 6 and 8 have restrictions
-      
-      const tile = numberTiles.find(t => t.key === tileKey);
-      if (!tile) return false;
-      
-      const adjacentHexes = getAdjacentHexes(tile.q, tile.r);
-      
-      // Check if any adjacent hex has a 6 or 8
-      for (const adj of adjacentHexes) {
-        const adjKey = `${adj.q},${adj.r}`;
-        const adjNumber = placedNumbers.get(adjKey);
-        if (adjNumber === 6 || adjNumber === 8) {
-          return false; // Can't place 6 or 8 next to another 6 or 8
-        }
-      }
-      
-      return true;
-    };
-    
-    // Separate high probability numbers (6, 8) from others
-    const highProbNumbers = numberDistribution.filter(n => n === 6 || n === 8);
-    const otherNumbers = numberDistribution.filter(n => n !== 6 && n !== 8);
-    
-    const newNumbers = new Map<string, number>();
-    const availableTiles = [...numberTiles];
-    
-    // First, place 6s and 8s ensuring they're not adjacent
-    for (const number of highProbNumbers) {
-      let placed = false;
-      
-      // Try random positions until we find a valid one
-      for (let attempts = 0; attempts < 100 && !placed; attempts++) {
-        const randomIndex = Math.floor(Math.random() * availableTiles.length);
-        const tile = availableTiles[randomIndex];
-        
-        if (isValidPlacement(tile.key, number, newNumbers)) {
-          newNumbers.set(tile.key, number);
-          availableTiles.splice(randomIndex, 1);
-          placed = true;
-        }
-      }
-      
-      // If we couldn't place it randomly, just place it anywhere available
-      if (!placed && availableTiles.length > 0) {
-        const tile = availableTiles.shift();
-        if (tile) newNumbers.set(tile.key, number);
-      }
-    }
-    
-    // Then place all other numbers randomly
-    const shuffledOthers = [...otherNumbers].sort(() => Math.random() - 0.5);
-    
-    // Make sure we have enough numbers for all tiles
-    const numbersNeeded = availableTiles.length;
-    const numbersAvailable = shuffledOthers.length;
-    
-    if (numbersNeeded > numbersAvailable) {
-      console.warn(`Not enough numbers! Need ${numbersNeeded}, have ${numbersAvailable}`);
-    }
-    
-    // Place remaining numbers
-    for (let i = 0; i < availableTiles.length && i < shuffledOthers.length; i++) {
-      const tile = availableTiles[i];
-      const number = shuffledOthers[i];
-      newNumbers.set(tile.key, number);
-    }
-    
-    console.log('Numbers placed:', newNumbers.size);
-    setBoardNumbers(newNumbers);
-  }, [board, mapSize]);
-
   // ========== COORDINATE CONVERSION ==========
   const hexToPixel = (q: number, r: number, size: number = 35) => {
     const x = size * (3/2 * q);
@@ -259,10 +173,10 @@ export const GameBoard = ({
     const topRow = Math.min(...landHexes.map(h => h.r));
     // Get all columns that have land hexes
     const validColumns = new Set(landHexes.map(h => h.q));
-    // Return spawn positions for each valid column, 4 rows above the board
+    // Return spawn positions for each valid column, 2 rows above the board (lowered from 4)
     return Array.from(validColumns).map(q => ({
       q,
-      r: topRow - 4
+      r: topRow - 2
     }));
   };
 
@@ -284,14 +198,15 @@ export const GameBoard = ({
     if (!currentTile || !isValidPosition(q, r)) return;
     
     const key = `${q},${r}`;
-    const newBoard = new Map(board);
     
     // Check if position already has a tile - if so, reset to top
-    if (newBoard.has(key) && newBoard.get(key)?.terrain) {
+    if (board.has(key) && board.get(key)?.terrain) {
       spawnNewTile();
       return;
     }
     
+    // Create new board with the placed tile
+    const newBoard = new Map(board);
     newBoard.set(key, { q, r, terrain: currentTile });
     setBoard(newBoard);
     
@@ -305,14 +220,140 @@ export const GameBoard = ({
     if (nextTileFromQueue) {
       // Spawn next tile after brief delay
       setTimeout(spawnNewTile, 200);
-    } else if (!hasMoreTiles && !showFinalBoard) {
-      // No more tiles - generate numbers and end game
+    } else {
+      // No more tiles - this was the last tile!
+      // Use the new board directly for number generation
       setTimeout(() => {
-        generateNumberTokens();
+        // Generate numbers using the new board that includes the last tile
+        const numberTiles = [];
+        newBoard.forEach((hex, hexKey) => {
+          // Exclude only desert and water from getting numbers - gold DOES get numbers
+          if (hex.terrain && hex.terrain !== 'desert' && hex.terrain !== 'water') {
+            numberTiles.push({ key: hexKey, q: hex.q, r: hex.r });
+          }
+        });
+        
+        // Calculate how many numbers we actually need
+        const numbersNeeded = numberTiles.length;
+        
+        // Generate appropriate number distribution based on actual tiles that need numbers
+        let numberDistribution: number[] = [];
+        
+        if (mapSize === 2) {
+          // Base game: should have exactly 18 resource tiles (19 total - 1 desert)
+          numberDistribution = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12];
+        } else {
+          // For larger maps, generate numbers based on how many we actually need
+          const baseNumbers = [2, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 8, 8, 9, 9, 9, 10, 10, 10, 11, 11, 11, 12];
+          numberDistribution = [...baseNumbers];
+          
+          // Add more numbers if needed
+          while (numberDistribution.length < numbersNeeded) {
+            // Add balanced numbers (avoiding 7)
+            const additionalNumbers = [3, 4, 5, 6, 8, 9, 10, 11];
+            for (const num of additionalNumbers) {
+              if (numberDistribution.length < numbersNeeded) {
+                numberDistribution.push(num);
+              }
+            }
+          }
+        }
+        
+        // Ensure we have exactly the right amount of numbers
+        numberDistribution = numberDistribution.slice(0, numbersNeeded);
+        const getAdjacentHexes = (q: number, r: number) => {
+          return [
+            { q: q + 1, r: r },
+            { q: q - 1, r: r },
+            { q: q, r: r + 1 },
+            { q: q, r: r - 1 },
+            { q: q + 1, r: r - 1 },
+            { q: q - 1, r: r + 1 }
+          ];
+        };
+        
+        const isValidPlacement = (tileKey: string, number: number, placedNumbers: Map<string, number>) => {
+          if (number !== 6 && number !== 8) return true;
+          const tile = numberTiles.find(t => t.key === tileKey);
+          if (!tile) return false;
+          
+          const adjacentHexes = getAdjacentHexes(tile.q, tile.r);
+          for (const adj of adjacentHexes) {
+            const adjKey = `${adj.q},${adj.r}`;
+            const adjNumber = placedNumbers.get(adjKey);
+            if (adjNumber === 6 || adjNumber === 8) {
+              return false;
+            }
+          }
+          return true;
+        };
+        
+        // Place numbers
+        const highProbNumbers = numberDistribution.filter(n => n === 6 || n === 8);
+        const otherNumbers = numberDistribution.filter(n => n !== 6 && n !== 8);
+        
+        const newNumbers = new Map<string, number>();
+        const availableTiles = [...numberTiles];
+        
+        // Place 6s and 8s
+        for (const number of highProbNumbers) {
+          let placed = false;
+          for (let attempts = 0; attempts < 100 && !placed; attempts++) {
+            const randomIndex = Math.floor(Math.random() * availableTiles.length);
+            const tile = availableTiles[randomIndex];
+            
+            if (isValidPlacement(tile.key, number, newNumbers)) {
+              newNumbers.set(tile.key, number);
+              availableTiles.splice(randomIndex, 1);
+              placed = true;
+            }
+          }
+          
+          if (!placed && availableTiles.length > 0) {
+            const tile = availableTiles.shift();
+            if (tile) newNumbers.set(tile.key, number);
+          }
+        }
+        
+        // Place other numbers
+        const shuffledOthers = [...otherNumbers].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < availableTiles.length && i < shuffledOthers.length; i++) {
+          const tile = availableTiles[i];
+          const number = shuffledOthers[i];
+          newNumbers.set(tile.key, number);
+        }
+        
+        // Safety check: ensure all resource tiles get a number
+        // This handles edge cases where the last tile might not get a number
+        numberTiles.forEach(tile => {
+          if (!newNumbers.has(tile.key)) {
+            // Find an available number from the remaining distribution
+            const usedNumbers = Array.from(newNumbers.values());
+            const remainingNumbers = numberDistribution.filter((num, index) => {
+              const usedCount = usedNumbers.filter(n => n === num).length;
+              const availableCount = numberDistribution.filter(n => n === num).length;
+              return usedCount < availableCount;
+            });
+            
+            if (remainingNumbers.length > 0) {
+              // Pick a random remaining number
+              const randomNumber = remainingNumbers[Math.floor(Math.random() * remainingNumbers.length)];
+              newNumbers.set(tile.key, randomNumber);
+            } else {
+              // Fallback: use any reasonable number if we somehow run out
+              const fallbackNumbers = [3, 4, 5, 9, 10, 11];
+              const randomFallback = fallbackNumbers[Math.floor(Math.random() * fallbackNumbers.length)];
+              newNumbers.set(tile.key, randomFallback);
+            }
+          }
+        });
+        
+        setBoardNumbers(newNumbers);
         setShowFinalBoard(true);
+        onGameEnd?.();
       }, 500);
     }
-  }, [currentTile, board, onTilePlaced, getNextTile, spawnNewTile, hasMoreTiles, showFinalBoard, generateNumberTokens]);
+  }, [currentTile, board, onTilePlaced, getNextTile, spawnNewTile, onGameEnd, mapSize]);
 
   // ========== AUTO DROP ==========
   const autoDropTile = useCallback(() => {
@@ -532,38 +573,38 @@ export const GameBoard = ({
     return () => clearInterval(speedUpInterval);
   }, [isPlaying]);
 
-  // ========== GAME END CHECK ==========
-  useEffect(() => {
-    if (!hasMoreTiles && isPlaying && board.size > 0 && !showFinalBoard && !currentTile) {
-      // Only end game if we've actually placed some tiles AND no current tile is active
-      setTimeout(() => {
-        generateNumberTokens();
-        setShowFinalBoard(true);
-      }, 500);
-    }
-  }, [hasMoreTiles, isPlaying, board.size, showFinalBoard, currentTile, generateNumberTokens]);
+  // Mobile specific adjustments
+  const svgViewBox = isMobile 
+    ? mapSize === 2 ? "-200 -230 400 460" 
+    : mapSize === 3 ? "-280 -320 560 640" 
+    : mapSize === 4 ? "-350 -400 700 800"
+    : "-360 -400 720 800"
+    : mapSize === 2 ? "-250 -280 500 560" 
+    : mapSize === 3 ? "-350 -380 700 760" 
+    : mapSize === 4 ? "-450 -480 900 960"
+    : "-450 -480 900 960";
 
   // ========== RENDER ==========
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
       {/* Game Board */}
       <div className="lg:col-span-3 order-2 lg:order-1">
-        <Card className="relative overflow-hidden bg-gradient-to-br from-blue-900/20 to-blue-800/20 border-border/50 shadow-2xl min-h-[400px] sm:min-h-[500px] md:min-h-[600px] h-full">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-blue-900/20 to-blue-800/20 border-border/50 shadow-2xl min-h-[350px] sm:min-h-[400px] md:min-h-[500px] lg:min-h-[600px] h-full">
           {/* Ocean background effect */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/10 via-blue-800/10 to-blue-700/10"></div>
           
           {/* Catan Board Frame */}
-          <div className="absolute inset-4 rounded-lg border-4 border-amber-600/40 bg-gradient-to-br from-amber-900/5 to-amber-800/5 shadow-inner">
+          <div className="absolute inset-2 sm:inset-3 md:inset-4 rounded-lg border-2 sm:border-3 md:border-4 border-amber-600/40 bg-gradient-to-br from-amber-900/5 to-amber-800/5 shadow-inner">
             {/* Decorative corner elements */}
-            <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-amber-500/60"></div>
-            <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-amber-500/60"></div>
-            <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-amber-500/60"></div>
-            <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-amber-500/60"></div>
+            <div className="absolute top-1 left-1 sm:top-2 sm:left-2 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-l-2 border-amber-500/60"></div>
+            <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-r-2 border-amber-500/60"></div>
+            <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-l-2 border-amber-500/60"></div>
+            <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-r-2 border-amber-500/60"></div>
           </div>
           
-          <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4 md:p-8">
+          <div className="relative w-full h-full flex items-center justify-center p-1 sm:p-2 md:p-4 lg:p-8">
             <svg 
-              viewBox={mapSize === 2 ? "-250 -280 500 560" : mapSize === 3 ? "-350 -380 700 760" : "-450 -480 900 960"}
+              viewBox={svgViewBox}
               className="w-full h-full"
               preserveAspectRatio="xMidYMid meet"
             >
@@ -617,11 +658,13 @@ export const GameBoard = ({
                   ? "0,-154 133,-77 133,77 0,154 -133,77 -133,-77"
                   : mapSize === 3
                   ? "0,-231 199.5,-115.5 199.5,115.5 0,231 -199.5,115.5 -199.5,-115.5"
+                  : mapSize === 4
+                  ? "0,-308 266,-154 266,154 0,308 -266,154 -266,-154"
                   : "0,-308 266,-154 266,154 0,308 -266,154 -266,-154"
                 }
                 fill="none" 
                 stroke="url(#board-frame)" 
-                strokeWidth="12" 
+                strokeWidth={isMobile ? "8" : "12"} 
                 opacity="0.6"
                 filter="url(#wood-texture)"
               />
@@ -632,19 +675,23 @@ export const GameBoard = ({
                   ? "0,-147 126,-73.5 126,73.5 0,147 -126,73.5 -126,-73.5"
                   : mapSize === 3
                   ? "0,-220.5 189,-110.25 189,110.25 0,220.5 -189,110.25 -189,-110.25"
+                  : mapSize === 4
+                  ? "0,-294 252,-147 252,147 0,294 -252,147 -252,-147"
                   : "0,-294 252,-147 252,147 0,294 -252,147 -252,-147"
                 }
                 fill="none" 
                 stroke="#DAA520" 
-                strokeWidth="3" 
+                strokeWidth={isMobile ? "2" : "3"} 
                 opacity="0.8"
               />
               
-              {/* Title */}
-              <text x="0" y={mapSize === 2 ? "-190" : mapSize === 3 ? "-250" : "-330"} 
-                    textAnchor="middle" fontSize="18" fill="#DAA520" fontWeight="bold" opacity="0.8">
-                CATAN ISLAND
-              </text>
+              {/* Title - Hidden on mobile */}
+              {!isMobile && (
+                <text x="0" y={mapSize === 2 ? "-190" : mapSize === 3 ? "-250" : mapSize === 4 ? "-330" : "-330"} 
+                      textAnchor="middle" fontSize="18" fill="#DAA520" fontWeight="bold" opacity="0.8">
+                  CATAN ISLAND
+                </text>
+              )}
               
               {/* Render all hexes */}
               {hexes.map(hex => {
@@ -661,7 +708,7 @@ export const GameBoard = ({
                     terrain={placedHex?.terrain || (hex.isWater ? 'water' : undefined)}
                     hasSettlement={placedHex?.hasSettlement}
                     hasCity={placedHex?.hasCity}
-                    number={!hex.isWater && placedHex?.terrain && placedHex.terrain !== 'desert' && placedHex.terrain !== 'water' && placedHex.terrain !== 'gold' ? number : undefined}
+                    number={!hex.isWater && placedHex?.terrain && placedHex.terrain !== 'desert' && placedHex.terrain !== 'water' ? number : undefined}
                     onClick={() => handleBoardClick(hex.q, hex.r)}
                   />
                 );
@@ -676,85 +723,44 @@ export const GameBoard = ({
                   rotation={tileRotation}
                 />
               )}
-              
-              {/* Add proper harbors at board edges - positioned just outside the board */}
-              {mapSize === 2 && (
-                <g opacity="0.9">
-                  {/* 3:1 Generic harbors - positioned just outside */}
-                  <g transform="translate(-78, -135)">
-                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
-                  </g>
-                  <g transform="translate(78, -135)">
-                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
-                  </g>
-                  <g transform="translate(156, 0)">
-                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
-                  </g>
-                  <g transform="translate(-156, 0)">
-                    <rect x="-18" y="-9" width="36" height="18" fill="#8B4513" rx="4" stroke="#654321" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="12" fill="#FFD700" fontWeight="bold">3:1</text>
-                  </g>
-                  
-                  {/* 2:1 Specialized harbors - positioned just outside */}
-                  <g transform="translate(0, -165)">
-                    <rect x="-22" y="-9" width="44" height="18" fill="#228B22" rx="4" stroke="#1a5c1a" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">2:1 🌲</text>
-                  </g>
-                  <g transform="translate(117, -82)">
-                    <rect x="-22" y="-9" width="44" height="18" fill="#F4A460" rx="4" stroke="#D2691E" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#333" fontWeight="bold">2:1 🌾</text>
-                  </g>
-                  <g transform="translate(117, 82)">
-                    <rect x="-22" y="-9" width="44" height="18" fill="#696969" rx="4" stroke="#4a4a4a" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">2:1 ⛏️</text>
-                  </g>
-                  <g transform="translate(0, 165)">
-                    <rect x="-22" y="-9" width="44" height="18" fill="#90EE90" rx="4" stroke="#66bb66" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#333" fontWeight="bold">2:1 🐑</text>
-                  </g>
-                  <g transform="translate(-117, 82)">
-                    <rect x="-22" y="-9" width="44" height="18" fill="#A0522D" rx="4" stroke="#8B4513" strokeWidth="2" />
-                    <text x="0" y="2" textAnchor="middle" fontSize="11" fill="#FFD700" fontWeight="bold">2:1 🧱</text>
-                  </g>
-                </g>
-              )}
             </svg>
             
             {/* Controls instruction - mobile responsive */}
             {isPlaying && !showFinalBoard && (
-              <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 text-xs sm:text-sm text-muted-foreground bg-card/90 p-2 sm:p-3 rounded-lg backdrop-blur-sm border border-border/30 max-w-[250px] sm:max-w-none">
-                <div className="font-semibold text-foreground mb-1">Controls:</div>
-                <div className="hidden sm:block">
-                  <div>← → : Move tile left/right</div>
-                  <div>↓ : Speed up drop</div>
-                  <div>↑ : Rotate tile (visual only)</div>
-                  <div>SPACE : Hard drop (instant place)</div>
-                  <div>Click : Move tile to position</div>
-                </div>
-                <div className="sm:hidden">
-                  <div>Tap board to move tile</div>
-                  <div>Tiles reset if blocked</div>
-                </div>
+              <div className={`absolute ${isMobile ? 'bottom-1 left-1 right-1' : 'bottom-2 left-2 sm:bottom-4 sm:left-4'} text-xs sm:text-sm text-muted-foreground bg-card/90 p-1 sm:p-2 md:p-3 rounded-lg backdrop-blur-sm border border-border/30 ${isMobile ? 'text-center' : 'max-w-[250px] sm:max-w-none'}`}>
+                {isMobile ? (
+                  <div>Tap board to move tile • Tiles auto-drop</div>
+                ) : (
+                  <>
+                    <div className="font-semibold text-foreground mb-1">Controls:</div>
+                    <div className="hidden sm:block">
+                      <div>← → : Move tile left/right</div>
+                      <div>↓ : Speed up drop</div>
+                      <div>↑ : Rotate tile (visual only)</div>
+                      <div>SPACE : Hard drop (instant place)</div>
+                      <div>Click : Move tile to position</div>
+                    </div>
+                    <div className="sm:hidden">
+                      <div>Tap board to move tile</div>
+                      <div>Tiles reset if blocked</div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             {/* Game Over - Mobile Responsive */}
             {showFinalBoard && (
-              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-                <Card className="p-4 sm:p-6 text-center border-2 border-primary/50 bg-card/90 backdrop-blur-sm max-w-[90vw] sm:max-w-md">
-                  <h2 className="text-xl sm:text-2xl font-bold text-primary mb-2">🏝️ Island Complete! 🏝️</h2>
-                  <p className="text-sm sm:text-base text-muted-foreground">Your Catan island is ready!</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-2">Number tokens have been placed on the tiles.</p>
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+                <Card className="p-3 sm:p-4 md:p-6 text-center border-2 border-primary/50 bg-card/90 backdrop-blur-sm w-[90%] max-w-[90vw] sm:max-w-md">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-primary mb-1 sm:mb-2">🏝️ Island Complete! 🏝️</h2>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Your Catan island is ready!</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mt-1 sm:mt-2">Number tokens have been placed on the tiles.</p>
                   <Button 
-                    className="mt-4" 
+                    className="mt-3 sm:mt-4 text-xs sm:text-sm md:text-base" 
+                    size={isMobile ? "sm" : "default"}
                     onClick={() => {
                       setShowFinalBoard(false);
-                      if (!hasMoreTiles) {
-                        onGameEnd?.();
-                      }
                     }}
                   >
                     View Board
@@ -766,21 +772,21 @@ export const GameBoard = ({
         </Card>
       </div>
 
-      {/* Side Panel */}
-      <div className="lg:col-span-1 order-1 lg:order-2 space-y-4">
+      {/* Side Panel - Responsive */}
+      <div className="lg:col-span-1 order-1 lg:order-2 space-y-2 sm:space-y-3 md:space-y-4">
         {/* Next Tile Preview */}
         <NextTilePreview nextTile={nextTile} upcomingTiles={upcomingTiles} />
         
-        {/* Remaining Tiles Counter */}
+        {/* Remaining Tiles Counter - Compact on mobile */}
         <Card className="bg-card/60 backdrop-blur-sm border-border/30">
-          <div className="p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-2">Remaining Tiles</h3>
-            <div className="grid grid-cols-2 gap-1 text-xs">
+          <div className="p-2 sm:p-3 md:p-4">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-1 sm:mb-2">Remaining Tiles</h3>
+            <div className={`grid ${isMobile ? 'grid-cols-3' : 'grid-cols-2'} gap-0.5 sm:gap-1 text-[10px] sm:text-xs`}>
               {Object.entries(remainingTiles).map(([terrain, count]) => (
                 count > 0 && (
                   <div key={terrain} className="flex justify-between">
-                    <span className="capitalize text-muted-foreground">{terrain}:</span>
-                    <span className="text-foreground">{count}</span>
+                    <span className="capitalize text-muted-foreground">{isMobile ? terrain.slice(0, 3) : terrain}:</span>
+                    <span className="text-foreground font-medium">{count}</span>
                   </div>
                 )
               ))}

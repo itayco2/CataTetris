@@ -1,5 +1,6 @@
 import { TerrainType } from './GameBoard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NextTilePreviewProps {
   nextTile: TerrainType | null;
@@ -40,6 +41,8 @@ const TERRAIN_NAMES = {
 };
 
 export const NextTilePreview = ({ nextTile, upcomingTiles }: NextTilePreviewProps) => {
+  const isMobile = useIsMobile();
+  
   const renderMiniHex = (terrain: TerrainType, size: number = 20) => {
     const hexPath = () => {
       const points = [];
@@ -82,6 +85,47 @@ export const NextTilePreview = ({ nextTile, upcomingTiles }: NextTilePreviewProp
     );
   };
 
+  // Mobile compact view
+  if (isMobile) {
+    return (
+      <Card className="bg-card/80 backdrop-blur-sm border-border/50 shadow-medieval">
+        <CardContent className="p-2 sm:p-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-medium text-muted-foreground">Next:</div>
+            <div className="flex items-center gap-2">
+              {/* Current/Next Tile */}
+              {nextTile && (
+                <div className="flex items-center gap-1">
+                  {renderMiniHex(nextTile, 15)}
+                  <span className="text-xs font-medium text-foreground">
+                    {TERRAIN_NAMES[nextTile]}
+                  </span>
+                </div>
+              )}
+              
+              {/* Divider */}
+              {nextTile && upcomingTiles.length > 0 && (
+                <div className="w-px h-8 bg-border/50" />
+              )}
+              
+              {/* Upcoming Tiles */}
+              {upcomingTiles.length > 0 && (
+                <div className="flex gap-1">
+                  {upcomingTiles.slice(0, 2).map((terrain, index) => (
+                    <div key={index} className="opacity-60">
+                      {renderMiniHex(terrain, 12)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Desktop view
   return (
     <Card className="bg-card/80 backdrop-blur-sm border-border/50 shadow-medieval">
       <CardHeader className="pb-3">
